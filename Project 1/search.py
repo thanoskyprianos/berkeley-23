@@ -195,7 +195,7 @@ def uniformCostSearch(problem: SearchProblem):
         for state, direction, cost in problem.getSuccessors(current):
             path_cost = cost + costs[current]
 
-            # only enqueue and upadate if not visited or current cost < previous cost
+            # only enqueue and update if not visited or current cost < previous cost
             if state not in costs or path_cost < costs[state]:
                 connections[state] = (current, direction)
                 costs[state] = path_cost
