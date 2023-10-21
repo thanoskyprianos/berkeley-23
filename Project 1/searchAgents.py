@@ -527,14 +527,11 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
 
     max_c = 0
     for x, y in foodGrid.asList():
-        cur_c = abs(x - position[0]) + abs(y - position[1])
-
-        if max_c < cur_c:
-            max_c = cur_c
+        maze_dist = mazeDistance(position, (x, y), problem.startingGameState)
+        if max_c < maze_dist:
+            max_c = maze_dist
 
     return max_c
-
-    return 0
 
 class ClosestDotSearchAgent(SearchAgent):
     "Search for all food using a sequence of searches"
@@ -561,11 +558,13 @@ class ClosestDotSearchAgent(SearchAgent):
         # Here are some useful elements of the startState
         startPosition = gameState.getPacmanPosition()
         food = gameState.getFood()
-        walls = gameState.getWalls()
+        # walls = gameState.getWalls()
         problem = AnyFoodSearchProblem(gameState)
 
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        closest_food = min(food.asList(), key = lambda x: abs(x[0] - startPosition[0]) + abs(x[1] - startPosition[1]))
+        problem.goal = closest_food
+
+        return search.astar(problem, manhattanHeuristic)
 
 class AnyFoodSearchProblem(PositionSearchProblem):
     """
@@ -598,10 +597,8 @@ class AnyFoodSearchProblem(PositionSearchProblem):
         The state is Pacman's position. Fill this in with a goal test that will
         complete the problem definition.
         """
-        x,y = state
-
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        
+        return state in self.food.asList()
 
 def mazeDistance(point1: Tuple[int, int], point2: Tuple[int, int], gameState: pacman.GameState) -> int:
     """
