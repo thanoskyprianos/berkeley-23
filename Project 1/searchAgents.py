@@ -526,8 +526,13 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     position, foodGrid = state
 
     max_c = 0
-    for x, y in foodGrid.asList():
-        maze_dist = mazeDistance(position, (x, y), problem.startingGameState)
+    for food in foodGrid.asList():
+        maze_dist = problem.heuristicInfo.get((position, food), None)
+
+        if not maze_dist:
+            maze_dist = mazeDistance(position, food, problem.startingGameState)
+            problem.heuristicInfo[(position, food)] = maze_dist     # memoize value if later needed
+
         if max_c < maze_dist:
             max_c = maze_dist
 
