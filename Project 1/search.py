@@ -199,7 +199,7 @@ def uniformCostSearch(problem: SearchProblem):
             if state not in costs or path_cost < costs[state]:
                 connections[state] = (current, direction)
                 costs[state] = path_cost
-                pqueue.push(state, path_cost)
+                pqueue.update(state, path_cost)
 
 
     return getPath(start, current, connections)
@@ -239,7 +239,7 @@ def aStarSearch(problem: SearchProblem, heuristic=nullHeuristic):
             if state not in costs or path_cost < costs[state]:
                 connections[state] = (current, direction)
                 costs[state] = path_cost
-                pqueue.push(state, path_cost + heuristic(state, problem))
+                pqueue.update(state, path_cost + heuristic(state, problem))
 
     return getPath(start, current, connections)
 
