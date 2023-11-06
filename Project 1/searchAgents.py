@@ -420,13 +420,15 @@ def cornersHeuristic(state: Any, problem: CornersProblem):
     so we can just ignore them when calculating the heuristic value.
     '''
 
+    from util import manhattanDistance
+
     corners = problem.corners   # These are the corner coordinates
     # walls = problem.walls     # These are the walls of the maze, as a Grid (game.py), not needed
 
     max_manhattan = 0           # Initialize to 0 incase all corners are visited
-    for i, (x, y) in enumerate(corners):
+    for i, corner in enumerate(corners):
         if not state[2:][i]:
-            cur_manhattan = abs(x - state[0]) + abs(y - state[1])
+            cur_manhattan = manhattanDistance(state, corner)
             if max_manhattan < cur_manhattan:
                 max_manhattan = cur_manhattan
 
@@ -561,12 +563,15 @@ class ClosestDotSearchAgent(SearchAgent):
         gameState.
         """
         # Here are some useful elements of the startState
+
+        from util import manhattanDistance
+
         startPosition = gameState.getPacmanPosition()
         food = gameState.getFood()
         # walls = gameState.getWalls()
         problem = AnyFoodSearchProblem(gameState)
 
-        closest_food = min(food.asList(), key = lambda x: abs(x[0] - startPosition[0]) + abs(x[1] - startPosition[1]))
+        closest_food = min(food.asList(), key = lambda food: manhattanDistance(food, startPosition))
         problem.goal = closest_food
 
         return search.astar(problem, manhattanHeuristic)
