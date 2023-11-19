@@ -58,7 +58,7 @@ class ReflexAgent(Agent):
 
         The evaluation function takes in the current and proposed successor
         GameStates (pacman.py) and returns a number, where higher numbers are better.
-
+ 
         The code below extracts some useful information from the state, like the
         remaining food (newFood) and Pacman position after moving (newPos).
         newScaredTimes holds the number of moves that each ghost will remain
@@ -74,8 +74,34 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
-        "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        from util import manhattanDistance
+
+        for i, ghost in enumerate(successorGameState.getGhostPositions()):
+            
+            new_dist = manhattanDistance(newPos, ghost)
+            cur_dist = manhattanDistance(currentGameState.getPacmanPosition(), ghost)
+            if newScaredTimes[i] > 0:
+                if new_dist - cur_dist < 0:            # if we move closer to ghost
+                    if new_dist < newScaredTimes[i]:
+                        return float('inf')
+                    else:                              # else check for other options
+                        continue
+            else:
+                if new_dist <= 2:                      # if ghost is hostile and we are relatively close, avoid it
+                    return float('-inf')
+
+        for capsule in currentGameState.getCapsules(): # prefer to go on capsule before checking food
+            if capsule == newPos:
+                return float('inf')
+            
+        if currentGameState.getFood()[newPos[0]][newPos[1]]:
+            return float('inf')
+        
+        closest_food = min(manhattanDistance(newPos, food) for food in newFood.asList())
+        try:
+            return -min([closest_food, min(manhattanDistance(newPos, capsule) for capsule in currentGameState.getCapsules())])
+        except ValueError:
+            return -closest_food
 
 def scoreEvaluationFunction(currentGameState: GameState):
     """
@@ -135,8 +161,36 @@ class MinimaxAgent(MultiAgentSearchAgent):
         gameState.isLose():
         Returns whether or not the game state is a losing state
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        
+        def minValue(index : int, depth : int, state : GameState) -> float:
+            if state.isLose() or state.isWin() or depth == self.depth:
+                return self.evaluationFunction(state)
+            
+            v = float('inf')
+            for a in state.getLegalActions(index):
+                if index == state.getNumAgents() - 1: # continue with next ghost
+                    v = min(v, maxValue(depth + 1, state.generateSuccessor(index, a)))
+                else:                                 # switch to pacman on last ghost
+                    v = min(v, minValue(index + 1, depth, state.generateSuccessor(index, a)))
+
+            return v
+    
+        def maxValue(depth : int, state : GameState) -> float:
+            if state.isLose() or state.isWin() or depth == self.depth:
+                return self.evaluationFunction(state)
+            
+            v = float('-inf')
+            for a in state.getLegalActions(0):
+                v = max(v, minValue(1, depth, state.generateSuccessor(0, a))) # start with index 1 : first ghost
+
+            return v
+
+        # return the max min-value action of root's successors
+        return max (
+            gameState.getLegalActions(),
+            key = lambda a:
+                minValue(1, 0, gameState.generateSuccessor(0, a)) # 1 : first ghost, 0 : first depth    
+        )
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
