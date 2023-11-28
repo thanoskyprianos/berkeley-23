@@ -74,38 +74,48 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
+        # scores range : 0...5
+        # score = 5         -> state is win
+        # score = 4         -> pacaman moves towards scared ghost
+        # score = 3         -> grid tile is capsule
+        # score = 2         -> grid tile is food
+        # 0 < score <= 1    -> reciprocal distance to closest food / capsule
+        # score = 0         -> state is loss or close to ghost
+
         from util import manhattanDistance
 
+        if successorGameState.isWin():
+            return 5
+        elif successorGameState.isLose():
+            return 0
+
         for i, ghost in enumerate(successorGameState.getGhostPositions()):
-            
             new_dist = manhattanDistance(newPos, ghost)
             cur_dist = manhattanDistance(currentGameState.getPacmanPosition(), ghost)
-            if newScaredTimes[i] > 0:
-                if new_dist - cur_dist < 0:            # if we move closer to ghost
-                    if new_dist < newScaredTimes[i]:
-                        return float('inf')
-                    else:                              # else check for other options
-                        continue
+            
+            if newScaredTimes[i] > 0:    
+                if new_dist - cur_dist < 0: # if we move closer to ghost
+                    return 4
             else:
-                if new_dist <= 2:                      # if ghost is hostile and we are relatively close, avoid it
-                    return float('-inf')
+                if new_dist <= 1:           # if ghost is hostile and we are relatively close, avoid it
+                    return 0
 
-        for capsule in currentGameState.getCapsules(): # prefer to go on capsule before checking food
+        for capsule in currentGameState.getCapsules(): 
             if capsule == newPos:
-                return float('inf')
+                return 3
             
         if currentGameState.getFood()[newPos[0]][newPos[1]]:
-            return float('inf')
+            return 2
         
         # as a last option try find the closest capsule (if there is any) or food
-        # and pass the negation of it, as we prefer higher values
+        # and pass the reciprocal of it; closer food / capsule === bigger score
         
         closest_food = min(manhattanDistance(newPos, food) for food in newFood.asList())
         try:
             closest_capsule = min(manhattanDistance(newPos, capsule) for capsule in currentGameState.getCapsules())
-            return -min(closest_food, closest_capsule)
+            return 1 / min(closest_food, closest_capsule)
         except ValueError:
-            return -closest_food
+            return 1 / closest_food
 
 def scoreEvaluationFunction(currentGameState: GameState):
     """
@@ -193,7 +203,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         return max (
             gameState.getLegalActions(),
             key = lambda action:
-                minValue(1, 0, gameState.generateSuccessor(0, action)) # 1 : first ghost, 0 : first depth    
+                minValue(1, 0, gameState.generateSuccessor(0, action))              # 1 : first ghost, 0 : first depth    
         )
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
@@ -213,6 +223,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             v = float('-inf')
             for action in state.getLegalActions():
                 v = max(v, minValue(1, depth, state.generateSuccessor(0, action), a, b))
+                
                 if v > b: return v
                 a = max(a, v)
 
@@ -225,9 +236,9 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
             v = float('inf')
             for action in state.getLegalActions(index):
-                if index == state.getNumAgents() - 1:
+                if index == state.getNumAgents() - 1: # switch to pacman on last ghost (depth += 1)
                     v = min(v, maxValue(depth + 1, state.generateSuccessor(index, action), a, b))
-                else:
+                else:                                 # else continue with next ghost (index += 1)
                     v = min(v, minValue(index + 1, depth, state.generateSuccessor(index, action), a, b))
 
                 if v < a: return v
@@ -244,7 +255,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             if v > max_v:
                 max_v = v
                 max_action = action
-                a = max(a, v)       # set new lower bound
+                a = max(a, v)                         # set new lower bound
 
         return max_action
 
@@ -279,12 +290,12 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
             actions = state.getLegalActions(index)
 
             for action in actions:
-                if index == state.getNumAgents() - 1:
+                if index == state.getNumAgents() - 1: # switch to pacman on last ghost (depth += 1)
                     s += maxValue(depth + 1, state.generateSuccessor(index, action))
-                else:
+                else:                                 # else continue with next ghost (index += 1)
                     s += expectedValue(index + 1, depth, state.generateSuccessor(index, action))
 
-            return (1 / len(actions)) * s # P(r) = 1 / # of legal actions
+            return (1 / len(actions)) * s             # P(r) = 1 / # of legal actions
 
         return max (
             gameState.getLegalActions(),
@@ -297,10 +308,38 @@ def betterEvaluationFunction(currentGameState: GameState):
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
 
-    DESCRIPTION: <write something here so we know what you did>
+    DESCRIPTION: The algorithm takes into account:
+
+    1) The total distance to all food (reciprocal as more food should equal less score)
+    2) The total capsule count        (reciprocal, more capsules should penalize pacman for not being eaten)
+    3) The scared times of each ghost (as is, more time should encourage pacman to chase ghosts)
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+
+    from util import manhattanDistance
+
+    curPos  = currentGameState.getPacmanPosition()
+    curFood = currentGameState.getFood()
+    curGhostStates = currentGameState.getGhostStates()
+    curScaredTimes = [ghostState.scaredTimer for ghostState in curGhostStates]
+
+    foodDistanceSum = sum(manhattanDistance(curPos, food) for food in curFood.asList())
+    capsulesCount = len(currentGameState.getCapsules())
+    scaredTimesSum = sum(curScaredTimes)                                # more time === more score
+    
+    reciprocalFoodSum = 1 / foodDistanceSum if foodDistanceSum else 0   # more food === less score
+    reciprocalCapsuleCount = 1 / capsulesCount if capsulesCount else 0  # more capsules === less score
+
+    score =  currentGameState.getScore() + reciprocalFoodSum + reciprocalCapsuleCount + scaredTimesSum
+
+    for i, ghost in enumerate(currentGameState.getGhostPositions()):
+        dist = manhattanDistance(curPos, ghost)
+
+        if curScaredTimes[i] > 0:
+            score += dist                                               # if scared go close to them
+        else:
+            score -= dist                                               # else avoid them
+
+    return score
 
 # Abbreviation
 better = betterEvaluationFunction
